@@ -5,7 +5,6 @@
     showSearch
     v-bind="$attrs"
     :filter-option="filterOption"
-    :not-found-content="fetching ? undefined : null"
     @focus="focusHandle()"
     @change="(val, data) => changeHandle(val, data)"
     :getPopupContainer="triggerNode => triggerNode.parentNode"
@@ -15,8 +14,9 @@
     <template v-for="item in options" :key="item._value_">
       <a-select-option v-if="item._text_?.toLowerCase().includes(searchValue)" :item="item" :value="item._value_" :text="item._text_">{{ item._text_ }}</a-select-option>
     </template>
-    <template v-if="fetching" #notFoundContent>
-      <a-spin size="small" />
+    <template #notFoundContent>
+      <a-spin v-if="fetching" size="small" />
+      <a-empty v-if="!fetching" description="暂无数据" />
     </template>
   </a-select>
 </template>
@@ -78,14 +78,6 @@ function popupScrollHandle(e) {
     }
   }
 }
-
-/**
- * 在嵌套对象中查找包含指定键的对象
- * @param {Object} obj - 要搜索的对象
- * @param {string} key - 要查找的键
- * @param {boolean} iself - 是否仅返回键对应的值，默认为false
- * @returns {Object|null} - 包含指定键的对象或null，如果iself为true，则返回键对应的值
- */
 function foundHaveKeyObjcet(obj, key, iself = false) {
   for (const k in obj) {
     if (k === key) {
@@ -129,9 +121,7 @@ function searchOptions(input = '') {
 function reloadData() {
   const config = attrs._optionsConfig || {};
   const pageConfig = foundHaveKeyObjcet(config.params, config.paging);
-  if (pageConfig) {
-    pageConfig[config.paging] = 1;
-  }
+  pageConfig[config.paging] = 1;
   requestOptionsEvent();
 }
 const filterOption = (input, option) => {
@@ -180,6 +170,7 @@ function extractTemplates(str) {
 function fetchParamFormat(params = {}, form = {}) {
   let paramStr = JSON.stringify(params);
   const templates = extractTemplates(paramStr) || [];
+  console.log(templates, 'templates');
   paramStr = templates.reduce((string, item) => {
     return globalReplace(string, `\${${item}}`, form[item] || '');
   }, paramStr);
@@ -261,7 +252,8 @@ function focusHandle() {
   let event = attrs._optionsConfig?.event || [];
   emits('onFocus', innerValue.value);
   if (event.includes('focus') && !innerValue.value) {
-    reloadData();
+    options.value = [];
+    requestOptionsEvent();
   }
 }
 function changeHandle(val, data) {
